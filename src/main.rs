@@ -2,9 +2,10 @@ mod tweet;
 mod like;
 
 use actix_web::{web, App, HttpServer};
+use actix_cors::Cors;
 use mongodb::{Client, options::ClientOptions, Collection};
 use serde::Deserialize;
-use tweet::{Tweet, post_tweet};
+use tweet::{Tweet, post_tweet, get_tweets};
 use like::{Like, like_tweet};
 use dotenv::dotenv;
 
@@ -32,9 +33,20 @@ async fn main() -> std::io::Result<()> {
     });
 
     HttpServer::new(move || {
+
+        let cors = Cors::default()
+        .allowed_origin("http://localhost:3000")  // Allow only from this origin
+        .allowed_methods(vec!["GET", "POST"])    // Specify allowed methods
+        .allowed_headers(vec![actix_web::http::header::CONTENT_TYPE, actix_web::http::header::ACCEPT])
+        .supports_credentials()
+        .max_age(3600);
+
+
         App::new()
+            .wrap(cors)
             .app_data(app_data.clone())
             .route("/tweet", web::post().to(post_tweet))
+            .route("/tweets", web::get().to(get_tweets))
             .route("/like", web::post().to(like_tweet))
     })
     .bind("127.0.0.1:8080")?
