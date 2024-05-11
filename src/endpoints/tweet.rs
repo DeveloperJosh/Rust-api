@@ -64,3 +64,48 @@ pub async fn get_tweets(data: web::Data<AppState>) -> impl Responder {
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
+
+// DELETE /api/delete/{id}
+pub async fn delete_tweet(data: web::Data<AppState>, tweet_id: web::Path<String>) -> impl Responder {
+    let id_str = &tweet_id;
+    if let Ok(id) = Uuid::parse_str(id_str) {
+        let collection = &data.tweet_collection;
+        let delete_result = collection.delete_one(doc! { "id": id.to_string() }, None).await;
+
+        match delete_result {
+            Ok(delete) if delete.deleted_count == 1 => HttpResponse::Ok().finish(),
+            Ok(_) => HttpResponse::NotFound().finish(),
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        }
+    } else {
+        HttpResponse::BadRequest().body("Invalid tweet ID format")
+    }
+}
+
+// update tweet content
+pub async fn update_tweet(data: web::Data<AppState>, tweet_id: web::Path<String>, tweet_data: web::Json<TweetData>) -> impl Responder {
+    // find the tweet by id and update the content field
+    let id_str = &tweet_id;
+
+    // add to the end of the content (edited)
+    let tweet_data = TweetData {
+        content: format!("{} (edited)", tweet_data.content)
+    };
+
+    if let Ok(id) = Uuid::parse_str(id_str) {
+        let collection = &data.tweet_collection;
+        let update_result = collection.update_one(
+            doc! { "id": id.to_string() },
+            doc! { "$set": { "content": tweet_data.content.clone() } },
+            None
+        ).await;
+
+        match update_result {
+            Ok(update) if update.matched_count == 1 => HttpResponse::Ok().finish(),
+            Ok(_) => HttpResponse::NotFound().finish(),
+            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        }
+    } else {
+        HttpResponse::BadRequest().body("Invalid tweet ID format")
+    }
+}

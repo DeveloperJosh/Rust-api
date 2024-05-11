@@ -1,12 +1,11 @@
-mod tweet;
-mod like;
+mod endpoints;
 
 use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use mongodb::{Client, options::ClientOptions, Collection};
 use serde::Deserialize;
-use tweet::{Tweet, post_tweet, get_tweets};
-use like::{Like, like_tweet};
+use endpoints::{Tweet, Like, post_tweet, get_tweets, like_tweet, delete_tweet, update_tweet};
+
 use dotenv::dotenv;
 
 pub struct AppState {
@@ -45,9 +44,13 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .app_data(app_data.clone())
-            .route("/tweet", web::post().to(post_tweet))
-            .route("/tweets", web::get().to(get_tweets))
-            .route("/like", web::post().to(like_tweet))
+            .route("/api/create", web::post().to(post_tweet))
+            // /api/delete/:id
+            .route("/api/delete/{id}", web::delete().to(delete_tweet))
+            // /api/update/:id
+            .route("/api/update/{id}", web::put().to(update_tweet))
+            .route("/api/all", web::get().to(get_tweets))
+            .route("/api/like", web::post().to(like_tweet))
     })
     .bind("127.0.0.1:8080")?
     .run()
