@@ -4,7 +4,7 @@ This is a RESTful API built with Rust, designed to handle posts, likes, and user
 
 ## Features
 
-- **Posts Management**: Create, update, and delete posts (coming soon).
+- **Posts Management**: Create, update, and delete posts.
 - **Likes**: Users can like posts.
 - **User Authentication**: Support for user logins and sign-ups (coming soon).
 
