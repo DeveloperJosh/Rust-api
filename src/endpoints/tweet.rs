@@ -1,111 +1,105 @@
 use actix_web::{web, HttpResponse, Responder};
-use mongodb::{bson::doc, Collection};
 use serde::{Serialize, Deserialize};
-use crate::AppState;
-use uuid::Uuid;  // Import the UUID crate
-use futures::stream::StreamExt; // Import StreamExt for handling streams
-
+use crate::AppState; // Make sure to import AppState
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Tweet {
-    pub id: String,  // Changed to String to store UUIDs as strings
+    pub id: i32,
     pub content: String,
-    pub likes: u32,
+    pub likes: Option<i32>,  // Change to Option<i32> if `likes` can be null
+    pub created_at: chrono::NaiveDateTime,
 }
+
 
 #[derive(Serialize, Deserialize)]
 pub struct TweetData {
     pub content: String,
 }
 
-// Post a tweet with a UUID
-pub async fn post_tweet(data: web::Data<AppState>, tweet_data: web::Json<TweetData>) -> impl Responder {
-    let collection = &data.tweet_collection;
+// Post a tweet
+pub async fn post_tweet(
+    data: web::Data<AppState>, // Changed to use AppState
+    tweet_data: web::Json<TweetData>
+) -> impl Responder {
+    let result = sqlx::query!(
+        "INSERT INTO tweets (content, likes, created_at) VALUES ($1, 0, NOW()) RETURNING id",
+        tweet_data.content,
+    )
+    .fetch_one(&data.pool) // Access the pool through AppState
+    .await;
 
-    // Generate a new UUID for the tweet
-    let new_id = Uuid::new_v4().to_string();
-
-    let new_tweet = Tweet {
-        id: new_id,
-        content: tweet_data.into_inner().content,
-        likes: 0,
-    };
-
-    let insert_result = collection.insert_one(new_tweet.clone(), None).await;
-
-    match insert_result {
-        Ok(_) => HttpResponse::Created().json(new_tweet),
+    match result {
+        Ok(record) => HttpResponse::Ok().json(record.id),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
-// Get all tweets 
+// Get all tweets
 pub async fn get_tweets(data: web::Data<AppState>) -> impl Responder {
-    let collection = &data.tweet_collection;
-    let find_result = collection.find(None, None).await;
+    let tweets = sqlx::query_as!(
+        Tweet,
+        "SELECT * FROM tweets"
+    )
+    .fetch_all(&data.pool)
+    .await;
 
-    match find_result {
-        Ok(cursor) => {
-            let tweets: Vec<Tweet> = cursor
-                .filter_map(|item| async {
-                    match item {
-                        Ok(tweet) => Some(tweet),
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            None
-                        }
-                    }
-                })
-                .collect::<Vec<Tweet>>() // Collect tweets into a vector
-                .await; // Await the collection process
-
-            HttpResponse::Ok().json(tweets) // Send the vector as a JSON response
-        }
+    match tweets {
+        Ok(tweets) => HttpResponse::Ok().json(tweets),
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
-// DELETE /api/delete/{id}
-pub async fn delete_tweet(data: web::Data<AppState>, tweet_id: web::Path<String>) -> impl Responder {
-    let id_str = &tweet_id;
-    if let Ok(id) = Uuid::parse_str(id_str) {
-        let collection = &data.tweet_collection;
-        let delete_result = collection.delete_one(doc! { "id": id.to_string() }, None).await;
+// Get a specific tweet
+pub async fn get_tweet(data: web::Data<AppState>, tweet_id: web::Path<i32>) -> impl Responder {
+    let tweet = sqlx::query_as!(
+        Tweet,
+        "SELECT * FROM tweets WHERE id = $1",
+        tweet_id.into_inner()
+    )
+    .fetch_one(&data.pool)
+    .await;
 
-        match delete_result {
-            Ok(delete) if delete.deleted_count == 1 => HttpResponse::Ok().finish(),
-            Ok(_) => HttpResponse::NotFound().finish(),
-            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-        }
-    } else {
-        HttpResponse::BadRequest().body("Invalid tweet ID format")
+    match tweet {
+        Ok(tweet) => HttpResponse::Ok().json(tweet),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
 
-// update tweet content
-pub async fn update_tweet(data: web::Data<AppState>, tweet_id: web::Path<String>, tweet_data: web::Json<TweetData>) -> impl Responder {
-    // find the tweet by id and update the content field
-    let id_str = &tweet_id;
+pub async fn delete_tweet(data: web::Data<AppState>, tweet_id: web::Path<i32>) -> impl Responder {
+    let result = sqlx::query!(
+        "DELETE FROM tweets WHERE id = $1",
+        tweet_id.into_inner()
+    )
+    .execute(&data.pool)
+    .await;
 
-    // add to the end of the content (edited)
+    match result {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+    }
+}
+
+pub async fn update_tweet(
+    data: web::Data<AppState>,
+    tweet_id: web::Path<i32>,
+    tweet_data: web::Json<TweetData>
+) -> impl Responder {
+
+    // add (edited) to the content
     let tweet_data = TweetData {
         content: format!("{} (edited)", tweet_data.content)
     };
 
-    if let Ok(id) = Uuid::parse_str(id_str) {
-        let collection = &data.tweet_collection;
-        let update_result = collection.update_one(
-            doc! { "id": id.to_string() },
-            doc! { "$set": { "content": tweet_data.content.clone() } },
-            None
-        ).await;
+    let result = sqlx::query!(
+        "UPDATE tweets SET content = $1 WHERE id = $2",
+        tweet_data.content,
+        tweet_id.into_inner()
+    )
+    .execute(&data.pool)
+    .await;
 
-        match update_result {
-            Ok(update) if update.matched_count == 1 => HttpResponse::Ok().finish(),
-            Ok(_) => HttpResponse::NotFound().finish(),
-            Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-        }
-    } else {
-        HttpResponse::BadRequest().body("Invalid tweet ID format")
+    match result {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }
