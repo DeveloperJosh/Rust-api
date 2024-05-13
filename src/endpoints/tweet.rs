@@ -1,3 +1,6 @@
+// This code needs to be recoded to work with the new authentication system,
+// I plan to do this later tonight
+
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Serialize, Deserialize};
 use crate::AppState; // Make sure to import AppState
@@ -8,8 +11,6 @@ pub struct Tweet {
     pub content: String,
     pub likes: Option<i32>,  // Change to Option<i32> if `likes` can be null
     pub created_at: chrono::NaiveDateTime,
-    pub author_id: i32,
-    pub author_username: String,
 }
 
 
@@ -32,6 +33,7 @@ pub async fn post_tweet(
 
     match result {
         Ok(record) => HttpResponse::Ok().json(record.id),
+        // now send a body with OK status
         Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
     }
 }

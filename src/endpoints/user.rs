@@ -32,6 +32,7 @@ pub struct LoginUserData {
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     sub: String,
+   // username: String,
     exp: usize,
 }
 
@@ -87,6 +88,7 @@ pub async fn login_user(
             if verify(&user_data.password, &user.password_hash).unwrap_or(false) {
                 let claims = Claims {
                     sub: user.email,
+                   // username: user.username,
                     exp: (Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
                 };
                 let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret".to_string());
