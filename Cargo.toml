@@ -17,3 +17,5 @@ uuid = { version = "1", features = ["serde", "v4"] }
 bcrypt = "0.10"
 jsonwebtoken = "8.0"
 log = "0.4"
+thiserror = "1.0.60"
+futures = "0.3.30"

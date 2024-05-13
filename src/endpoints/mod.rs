@@ -15,4 +15,7 @@ pub use like::{
 pub use user::{
     User,
      register_user,
-      login_user};
+      login_user,
+       Claims,
+       LoginUserData,
+        RegisterUserData};

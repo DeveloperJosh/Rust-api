@@ -8,6 +8,8 @@ pub struct Tweet {
     pub content: String,
     pub likes: Option<i32>,  // Change to Option<i32> if `likes` can be null
     pub created_at: chrono::NaiveDateTime,
+    pub author_id: i32,
+    pub author_username: String,
 }
 
 

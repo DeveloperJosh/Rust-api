@@ -30,7 +30,7 @@ pub struct LoginUserData {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Claims {
+pub struct Claims {
     sub: String,
     exp: usize,
 }
