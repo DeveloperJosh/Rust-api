@@ -63,7 +63,6 @@ rustup install stable
 
     ```sql
     CREATE DATABASE your_database_name;
-    \q
     ```
 
     Making Tables
