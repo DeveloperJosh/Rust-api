@@ -23,7 +23,7 @@ pub struct AppState {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    //env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
     println!("Connected to database");
 
     // Initialize database pool
@@ -49,7 +49,6 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(Logger::default())
-            .wrap(Logger::new("IP: {ip}, User-Agent: {user-agent}, Request: {request}"))
             .wrap(cors)
             .app_data(data.clone()) // Clone the data for each worker
             .service(
