@@ -1,5 +1,5 @@
 use bcrypt::{hash, verify, DEFAULT_COST};
-use jsonwebtoken::{encode, decode, Header, Algorithm, EncodingKey, DecodingKey, Validation};
+use jsonwebtoken::{encode, Header, EncodingKey};
 use serde::{Serialize, Deserialize};
 use actix_web::{web, HttpResponse, Responder};
 use chrono::{Utc, NaiveDateTime};

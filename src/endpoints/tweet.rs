@@ -2,7 +2,6 @@
 // I plan to do this later tonight
 
 use actix_web::{web, HttpResponse, Responder};
-use serde::{Serialize, Deserialize};
 use crate::AppState; // Make sure to import AppState
 use crate::models::tweets::{Tweet, TweetData};
 
