@@ -4,8 +4,7 @@ use actix_web_httpauth::extractors::bearer::BearerAuth;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use futures::future::{ready, Ready};
 use std::env;
-// use the `Claims` struct from the `user.rs` module
-use crate::endpoints::user::Claims;
+use crate::models::users::Claims;
 
 pub fn jwt_middleware(
     req: ServiceRequest,

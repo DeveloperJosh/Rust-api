@@ -4,20 +4,7 @@
 use actix_web::{web, HttpResponse, Responder};
 use serde::{Serialize, Deserialize};
 use crate::AppState; // Make sure to import AppState
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Tweet {
-    pub id: i32,
-    pub content: String,
-    pub likes: Option<i32>,  // Change to Option<i32> if `likes` can be null
-    pub created_at: chrono::NaiveDateTime,
-}
-
-
-#[derive(Serialize, Deserialize)]
-pub struct TweetData {
-    pub content: String,
-}
+use crate::models::tweets::{Tweet, TweetData};
 
 // Post a tweet
 pub async fn post_tweet(

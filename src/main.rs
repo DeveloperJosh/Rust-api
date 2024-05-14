@@ -1,4 +1,6 @@
 mod endpoints;
+mod auth;
+mod models;
 
 use actix_web::{web, App, HttpServer, middleware::Logger};
 use actix_cors::Cors;
@@ -7,10 +9,11 @@ use sqlx::postgres::{PgPoolOptions, PgPool};
 use env_logger::Env;
 use dotenv::dotenv;
 use actix_web_httpauth::middleware::HttpAuthentication;
+use crate::auth::jwt_middleware;
 
 use endpoints::{
     post_tweet, get_tweets, get_tweet, delete_tweet, update_tweet, like_tweet,
-    register_user, login_user, jwt_middleware,
+    register_user, login_user,
 };
 
 pub struct AppState {
