@@ -1,95 +1,81 @@
 // This code needs to be recoded to work with the new authentication system,
 // I plan to do this later tonight
 
-use actix_web::{web, HttpResponse, Responder};
+use log::error; // Import the error macro from the log crate
+
+use actix_web::{web, FromRequest, HttpRequest, Error, dev::Payload, HttpResponse, Responder};
+use futures::future::{ok, err, Ready};
+use actix_web::error::ErrorBadRequest;
+use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use crate::AppState; // Make sure to import AppState
 use crate::models::tweets::{Tweet, TweetData};
+use crate::models::users::Claims;
 
-// Post a tweet
+impl FromRequest for Claims {
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        if let Some(auth_header) = req.headers().get("Authorization") {
+            let auth_str = auth_header.to_str().unwrap_or("");
+            if auth_str.starts_with("Bearer ") {
+                let token = &auth_str[7..];
+                let secret = std::env
+                    ::var("JWT_SECRET")
+                    .expect("JWT_SECRET must be set");
+                match decode::<Claims>(token, &DecodingKey::from_secret(secret.as_ref()), &Validation::new(Algorithm::HS256)) {
+                    Ok(c) => return ok(c.claims),
+                    Err(_) => return err(ErrorBadRequest("Invalid token").into()),
+                }
+            }
+        }
+        err(ErrorBadRequest("Missing Authorization Header").into())
+    }
+}
+
+//post a tweet but only if the user is authenticated
 pub async fn post_tweet(
-    data: web::Data<AppState>, // Changed to use AppState
-    tweet_data: web::Json<TweetData>
+    data: web::Data<AppState>,
+    claims: Claims,
+    tweet_data: web::Json<TweetData>,
 ) -> impl Responder {
     let result = sqlx::query!(
-        "INSERT INTO tweets (content, likes, created_at) VALUES ($1, 0, NOW()) RETURNING id",
+        "INSERT INTO tweets (content, user_id, created_at) VALUES ($1, $2, NOW()) RETURNING id",
         tweet_data.content,
-    )
-    .fetch_one(&data.pool) // Access the pool through AppState
-    .await;
-
-    match result {
-        Ok(record) => HttpResponse::Ok().json(record.id),
-        // now send a body with OK status
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
-}
-
-// Get all tweets
-pub async fn get_tweets(data: web::Data<AppState>) -> impl Responder {
-    let tweets = sqlx::query_as!(
-        Tweet,
-        "SELECT * FROM tweets"
-    )
-    .fetch_all(&data.pool)
-    .await;
-
-    match tweets {
-        Ok(tweets) => HttpResponse::Ok().json(tweets),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
-}
-
-// Get a specific tweet
-pub async fn get_tweet(data: web::Data<AppState>, tweet_id: web::Path<i32>) -> impl Responder {
-    let tweet = sqlx::query_as!(
-        Tweet,
-        "SELECT * FROM tweets WHERE id = $1",
-        tweet_id.into_inner()
+        claims.id,
     )
     .fetch_one(&data.pool)
     .await;
 
-    match tweet {
-        Ok(tweet) => HttpResponse::Ok().json(tweet),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
-}
-
-pub async fn delete_tweet(data: web::Data<AppState>, tweet_id: web::Path<i32>) -> impl Responder {
-    let result = sqlx::query!(
-        "DELETE FROM tweets WHERE id = $1",
-        tweet_id.into_inner()
-    )
-    .execute(&data.pool)
-    .await;
+    println!("User ID: {}", claims.id);
 
     match result {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        Ok(record) => HttpResponse::Ok().json(record.id),
+        Err(e) => {
+            error!("Database error: {:?}", e);
+            HttpResponse::InternalServerError().body("Internal server error")
+        },
     }
 }
 
-pub async fn update_tweet(
+//like a tweet but only if the user is authenticated
+pub async fn like_tweet(
     data: web::Data<AppState>,
-    tweet_id: web::Path<i32>,
-    tweet_data: web::Json<TweetData>
+    _claims: Claims,
+    like: web::Json<Tweet>,
 ) -> impl Responder {
-
-    // add (edited) to the content
-    let tweet_data = TweetData {
-        content: format!("{} (edited)", tweet_data.content)
-    };
-
     let result = sqlx::query!(
-        "UPDATE tweets SET content = $1 WHERE id = $2",
-        tweet_data.content,
-        tweet_id.into_inner()
+        "UPDATE tweets SET likes = likes + 1 WHERE id = $1",
+        like.id
     )
     .execute(&data.pool)
     .await;
 
     match result {
         Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+        Err(e) => {
+            error!("Database error: {:?}", e);
+            HttpResponse::InternalServerError().body("Internal server error")
+        },
     }
 }

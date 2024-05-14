@@ -2,7 +2,7 @@ mod endpoints;
 mod auth;
 mod models;
 
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::postgres::{PgPoolOptions, PgPool};
 //use serde::Deserialize;
@@ -12,7 +12,7 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use crate::auth::jwt_middleware;
 
 use endpoints::{
-    post_tweet, get_tweets, get_tweet, delete_tweet, update_tweet, like_tweet,
+    post_tweet, like_tweet,
     register_user, login_user,
 };
 
@@ -54,12 +54,12 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api")
                     .wrap(auth)
-                    .route("/create", web::post().to(post_tweet))
+                    .route("/tweet", web::post().to(post_tweet))
                     .route("/like", web::post().to(like_tweet))
-                    .route("/all", web::get().to(get_tweets))
-                    .route("/get/{id}", web::get().to(get_tweet))
-                    .route("/delete/{id}", web::delete().to(delete_tweet))
-                    .route("/update/{id}", web::put().to(update_tweet)),
+                    //.route("/all", web::get().to(get_tweets))
+                    //.route("/get/{id}", web::get().to(get_tweet))
+                   // .route("/delete/{id}", web::delete().to(delete_tweet))
+                  //  .route("/update/{id}", web::put().to(update_tweet)),
             )
             .service(
                 web::scope("/user")

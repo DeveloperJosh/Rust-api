@@ -1,8 +1,7 @@
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, Header, EncodingKey};
-use serde::{Serialize, Deserialize};
 use actix_web::{web, HttpResponse, Responder};
-use chrono::{Utc, NaiveDateTime};
+use chrono::Utc;
 use crate::AppState;
 use std::env;
 use log::error;
@@ -26,9 +25,12 @@ pub async fn register_user(
             match result {
                 Ok(record) => HttpResponse::Ok().json(record.id),
                 Err(e) => {
-                    // if the email is already in use
-                    if e.to_string().contains("duplicate key value violates unique constraint") {
+                    // if the email/username is already in use
+                    // check user name and email
+                    if e.to_string().contains("users_email_key") {
                         HttpResponse::Conflict().body("Email already in use")
+                    } else if e.to_string().contains("users_username_key") {
+                        HttpResponse::Conflict().body("Username already in use")
                     } else {
                         error!("Database error: {:?}", e);
                     HttpResponse::InternalServerError().body("Internal server error")
@@ -60,7 +62,7 @@ pub async fn login_user(
             if verify(&user_data.password, &user.password_hash).unwrap_or(false) {
                 let claims = Claims {
                     sub: user.email,
-                   // username: user.username,
+                    id: user.id, // Add this line
                     exp: (Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
                 };
                 let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret".to_string());

@@ -26,6 +26,8 @@ pub struct LoginUserData {
 
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
+    // make sub both string and integer
     pub sub: String,
+    pub id: i32,
     pub exp: usize,
 }
